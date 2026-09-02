@@ -15,15 +15,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # go-version-file and not a hard-coded version: go.mod claims this builds
       # on Go 1.22, and this is what turns that claim into something that is
       # actually verified on every push. Raise the number in go.mod and CI
       # follows by itself.
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          # This project has no dependencies and therefore no go.sum. The
+          # module cache keys off that file, so leaving caching on produces a
+          # "dependencies file is not found" warning on every single run — and
+          # a CI annotation that is always there is one nobody reads.
+          cache: false
 
       # `go vet ./...` and `go test ./...` exit 1 when the module contains no
       # packages at all, so an empty repository would fail CI for the wrong
