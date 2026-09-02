@@ -1,0 +1,12 @@
+# The built binary does not belong in git: it is large, machine-specific and
+# one `go build` away from being recreated.
+/photowatch
+
+# Secrets. The real environment file lives on the storage host in
+# /etc/photowatch/photowatch.env (root:root, mode 600) and nowhere else.
+# Only etc/photowatch.env.example — with placeholders — belongs in git.
+*.env
+
+# Go test artifacts
+*.test
+*.out

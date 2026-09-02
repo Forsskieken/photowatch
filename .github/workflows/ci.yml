@@ -1,0 +1,66 @@
+# The cheapest possible guard that a change did not break anything, and the
+# proof to a reader that this project is alive. Three checks, no more:
+# formatting, vet, tests.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # go-version-file and not a hard-coded version: go.mod claims this builds
+      # on Go 1.22, and this is what turns that claim into something that is
+      # actually verified on every push. Raise the number in go.mod and CI
+      # follows by itself.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # `go vet ./...` and `go test ./...` exit 1 when the module contains no
+      # packages at all, so an empty repository would fail CI for the wrong
+      # reason. This step decides which of the two paths below runs, and it
+      # prints which one, so a green run on an empty tree can never be mistaken
+      # for a green run on a tested tree.
+      #
+      # Remove this guard once the Go sources have landed; from then on "no Go
+      # files" is itself a failure worth reporting.
+      - name: Detect Go sources
+        id: sources
+        run: |
+          if [ -n "$(find . -name '*.go' -not -path './.git/*' -print -quit)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "Go sources found; running gofmt, vet and test."
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No Go sources yet; vet and test are skipped on purpose."
+          fi
+
+      # Not `gofmt -l .` on its own: that prints the offending files but exits
+      # 0, so CI would stay green on unformatted code. The empty-output test is
+      # what makes it a check.
+      - name: gofmt
+        if: steps.sources.outputs.found == 'true'
+        run: |
+          out="$(gofmt -l .)"
+          if [ -n "$out" ]; then
+            echo "These files are not gofmt-formatted:"
+            echo "$out"
+            exit 1
+          fi
+
+      - name: go vet
+        if: steps.sources.outputs.found == 'true'
+        run: go vet ./...
+
+      - name: go test
+        if: steps.sources.outputs.found == 'true'
+        run: go test ./...
