@@ -1,4 +1,4 @@
-package main
+package watch
 
 import (
 	"encoding/json"
@@ -122,7 +122,7 @@ func (a ArtifactSlot) ListName() string   { return "restore" + a.suffix() + ".li
 
 // ReportPath is the full path of the report. It is separate because the payload
 // names the path while the file is only written after the notification (see
-// runAftercare in main.go): that way the notification can never hold a
+// runAftercare in run.go): that way the notification can never hold a
 // different path than where the report ends up.
 func (a ArtifactSlot) ReportPath() (string, error) {
 	return safeFilePath(a.Dir, a.ReportName())

@@ -1,4 +1,4 @@
-package main
+package watch
 
 import (
 	"errors"
@@ -202,7 +202,7 @@ func (c *Config) Validate() error {
 // checkThumbnailDir checks everything we can already know without the running
 // ZFS pool. The most important check — does the directory lie inside the
 // mountpoint of the watched dataset? — cannot happen here: the mountpoint only
-// arrives during the run from `zfs get`. That one lives in main.go, like
+// arrives during the run from `zfs get`. That one lives in run.go, like
 // checkPathPrefix.
 func (c *Config) checkThumbnailDir() error {
 	if c.ThumbnailDir == "" {

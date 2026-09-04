@@ -33,7 +33,7 @@ zfs get snapdir tank/photos    # must be 'hidden'; visible lets Immich import .z
 
 ```bash
 git clone https://github.com/Forsskieken/photowatch && cd photowatch
-go vet ./... && go test ./... && CGO_ENABLED=0 go build -trimpath -o photowatch .
+go vet ./... && go test ./... && CGO_ENABLED=0 go build -trimpath -o photowatch ./cmd/photowatch
 install -o root -g root -m 755 photowatch /usr/local/bin/photowatch
 install -d -o root -g root   -m 750 /etc/photowatch /var/lib/photowatch
 install -d -o root -g family -m 750 /var/log/photowatch

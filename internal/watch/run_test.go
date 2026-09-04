@@ -1,4 +1,4 @@
-package main
+package watch
 
 import (
 	"bytes"
@@ -287,7 +287,7 @@ func fakeZfs(t *testing.T, dataset, mountpoint, deletedPath string) string {
 }
 
 // The risky work belongs after the notification. This test measures the order
-// that enforces it: when run() is done — and therefore just before start()
+// that enforces it: when run() is done — and therefore just before Run()
 // sends the message — the payload must be complete and the restore script must
 // be on disk, while the report, the thumbnails and the cleanup have not
 // happened yet. If the process falls over after that (OOM, panic in a decoder,

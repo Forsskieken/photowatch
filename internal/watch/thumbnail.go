@@ -1,4 +1,4 @@
-package main
+package watch
 
 import (
 	"bytes"
@@ -99,7 +99,7 @@ type ThumbnailResult struct {
 // and whether anything may be written at all.
 //
 // It exists separately from MakeThumbnails because the notification goes out
-// before the scaling (see runAftercare in main.go). The payload must therefore
+// before the scaling (see runAftercare in run.go). The payload must therefore
 // already be able to say where the images will be, how many there will be and
 // whether anything is in the way. Both callers use this one function, so that
 // the intention and the execution cannot drift apart; it only reads and can

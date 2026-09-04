@@ -1,4 +1,4 @@
-package main
+package watch
 
 import (
 	"os"
@@ -162,7 +162,8 @@ func TestCleanTextStripsControlChars(t *testing.T) {
 // default in the code. If one of them ever deviates on purpose, that should be
 // an explicit conversation and not something you notice a year later.
 func TestEnvExampleMatchesTheDefaults(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("etc", "photowatch.env.example"))
+	// Relative to this package directory, so two levels up to the repository root.
+	data, err := os.ReadFile(filepath.Join("..", "..", "etc", "photowatch.env.example"))
 	if err != nil {
 		t.Fatalf("example file not readable: %v", err)
 	}

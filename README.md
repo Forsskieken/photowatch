@@ -82,17 +82,6 @@ table: [docs/OPERATIONS.md](docs/OPERATIONS.md).
 - Snapshots protect against deletion, not against fire, theft or a broken pool.
 - Runs as root, because ZFS needs `/dev/zfs`. The unit is locked down tightly.
 
-## Development
-
-```bash
-gofmt -l .          # must return nothing
-go vet ./... && go test ./...
-go test -fuzz=FuzzZfsPathRoundTrip -fuzztime=60s
-```
-
-The tests need no ZFS pool and no outside network: the parsers get fixed sample output,
-the notifier talks to an `httptest` server on the loopback.
-
 ## License
 
 MIT — see [LICENSE](LICENSE).

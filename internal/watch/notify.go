@@ -1,4 +1,4 @@
-package main
+package watch
 
 import (
 	"bytes"
@@ -81,7 +81,7 @@ type Payload struct {
 	// HA and not only in the report: together with the other counters it shows
 	// afterwards how much there was to see that day. That PATH_PREFIX no longer
 	// matches anything is not decided here but when the run starts
-	// (checkPathPrefix in main.go); see the explanation there.
+	// (checkPathPrefix in run.go); see the explanation there.
 	Skipped   int      `json:"skipped"`
 	Threshold int      `json:"threshold"`
 	Alert     bool     `json:"alarm"`
@@ -109,7 +109,7 @@ type Payload struct {
 	Thumbnails string `json:"thumbnails"`
 	// How many thumbnails will be made for this run. An intention and not a
 	// count, and that is on purpose: the scaling only happens after this message
-	// has been sent (see runAftercare in main.go), so at this moment there is no
+	// has been sent (see runAftercare in run.go), so at this moment there is no
 	// image yet. The path above is already fixed. How many were actually made is
 	// in the journal ("aftercare done") and in status.json under
 	// aftercare.thumbnails.

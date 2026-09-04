@@ -1,8 +1,6 @@
-// Command photowatch takes a daily ZFS snapshot of a photo dataset, counts how
-// many files have disappeared since the previous snapshot and reports that to
-// Home Assistant — *every* day, also when nothing is gone. That daily heartbeat
-// is half the point: it is how you notice when the watch itself falls silent.
-package main
+// Package watch is photowatch itself: the daily snapshot, the diff, the
+// notification and the paperwork that follows it.
+package watch
 
 import (
 	"context"
@@ -37,11 +35,8 @@ const maxFailureTextLength = 200
 // truncated and stripped of control characters.
 const maxInvocationLength = 64
 
-func main() {
-	os.Exit(start())
-}
-
-func start() int {
+// Run is the whole program; main() only passes on its exit code.
+func Run() int {
 	dryRun := flag.Bool("dry-run", false, "compute everything and write the report, the restore script and the thumbnails into the dry-run/ subdirectory; no snapshot, nothing created or deleted outside that directory, nothing sent")
 	status := flag.Bool("status", false, "show the last written status.json and stop")
 	debug := flag.Bool("debug", false, "verbose logging (level DEBUG)")
@@ -208,7 +203,7 @@ func writeStateOrLog(log *slog.Logger, dir string, sf StateFile) {
 
 // AftercarePlan is the work that deliberately happens only after the
 // notification: making the thumbnails, writing the report and cleaning up the
-// artifacts. run() prepares it and start() executes it as soon as the message
+// artifacts. run() prepares it and Run() executes it as soon as the message
 // is out; see the explanation at runAftercare.
 type AftercarePlan struct {
 	Now     time.Time
