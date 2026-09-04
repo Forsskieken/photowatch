@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("                               \a             \xb8\x99 \x8e                              \xb8\x99 \x8e    ")

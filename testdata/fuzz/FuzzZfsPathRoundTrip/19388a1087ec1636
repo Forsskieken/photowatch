@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("/mnt/tank/photos/2019/IMG_4412.JP\xfc\xfc\xfc\xfc\xfc\xfc\xfcG")

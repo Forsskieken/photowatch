@@ -1,0 +1,166 @@
+# Add these four automations to automations.yaml in Home Assistant.
+# Replace notify.mobile_app_alex_phone and notify.mobile_app_robin_phone with
+# your own notify services (Developer tools > Actions, type mobile_app).
+#
+# NOTE: the UI editor of Home Assistant rewrites automations.yaml on every
+# change and throws all comments away. The lasting explanation lives in
+# docs/OPERATIONS.md of this project.
+
+- alias: Photowatch - photos disappeared
+  id: photowatch_alert
+  mode: single
+  trigger:
+    # Bare, without from/to/not_from/not_to: with any of those, HA ignores
+    # changes where only the attributes change — and that is exactly the run
+    # that failed while the count stayed 0.
+    - platform: state
+      entity_id: sensor.photowatch_deleted
+  condition:
+    # Filtering happens in a condition, because a condition cannot make the
+    # trigger deaf to attribute changes. This one drops the value HA restores at
+    # startup: a real message is seconds old, a restored one carries the time of
+    # the last run.
+    - condition: template
+      value_template: >-
+        {% set sent = trigger.to_state.attributes.get('time','') | as_timestamp(0) %}
+        {{ trigger.from_state is not none
+           and (sent == 0 or now().timestamp() - sent < 1800) }}
+    # Only notify when photowatch says it is an alert: above the threshold, or a
+    # run that failed.
+    - condition: template
+      value_template: "{{ state_attr('sensor.photowatch_deleted','alarm') }}"
+  action:
+    - service: notify.mobile_app_alex_phone
+      data:
+        title: >-
+          {{ 'Photowatch: error' if state_attr('sensor.photowatch_deleted','status') == 'error'
+          else 'Photos disappeared from the archive' }}
+        # A literal block (|-) and not a folded one: the line breaks are
+        # intentional. Every {% endif %} starts the next line so that no empty
+        # lines remain when a part falls away. Keep every line shorter than a
+        # screen: a 700-character line got truncated on paste once.
+        #
+        # The error text and the count sit next to each other and not in an
+        # if/else: with an else, a configuration error would show *instead of*
+        # "43 files are gone" on exactly the day both happen.
+        message: |-
+          {%- set s = 'sensor.photowatch_deleted' -%}
+          {%- set d = state_attr(s,'recover_until') | default('', true) -%}
+          {%- set months = ['January','February','March','April','May','June',
+                            'July','August','September','October','November','December'] -%}
+          {%- set photos = state_attr(s,'media_files') | int(0) -%}
+          {%- set files = states(s) | int(0) -%}
+          {% if state_attr(s,'status') == 'error' %}Photowatch could not do its work: {{ state_attr(s,'message') }}
+          {% endif %}{% if files > 0 %}{{ photos }} photo{{ '' if photos == 1 else 's' }} ({{ files }} file{{ '' if files == 1 else 's' }}) gone since yesterday.
+          {% if state_attr(s,'folders') %}Mostly from: {{ state_attr(s,'folders') | join(', ') }}.
+          {% endif %}{% if state_attr(s,'thumbnails') %}Look at them: {{ state_attr(s,'thumbnails') }}
+          {% endif %}{% if state_attr(s,'restore_script') %}Restore (as root on the storage host): bash {{ state_attr(s,'restore_script') }}
+          {% endif %}{% if d | length == 10 %}Recoverable through {{ months[d[5:7] | int - 1] }} {{ d[8:10] | int }} - after that no longer.
+          Was this an accident? Say so before that date.
+          {% endif %}{% endif %}{% if state_attr(s,'side_issues') %}Note: {{ state_attr(s,'side_issues') }}{% endif %}
+        data:
+          priority: high
+          channel: photowatch
+    - service: notify.mobile_app_robin_phone
+      data:
+        title: >-
+          {{ 'Photowatch: error' if state_attr('sensor.photowatch_deleted','status') == 'error'
+          else 'Photos disappeared from the archive' }}
+        # The same text as above. A YAML anchor would remove the repetition, but
+        # the UI editor expands anchors again; change both copies together.
+        message: |-
+          {%- set s = 'sensor.photowatch_deleted' -%}
+          {%- set d = state_attr(s,'recover_until') | default('', true) -%}
+          {%- set months = ['January','February','March','April','May','June',
+                            'July','August','September','October','November','December'] -%}
+          {%- set photos = state_attr(s,'media_files') | int(0) -%}
+          {%- set files = states(s) | int(0) -%}
+          {% if state_attr(s,'status') == 'error' %}Photowatch could not do its work: {{ state_attr(s,'message') }}
+          {% endif %}{% if files > 0 %}{{ photos }} photo{{ '' if photos == 1 else 's' }} ({{ files }} file{{ '' if files == 1 else 's' }}) gone since yesterday.
+          {% if state_attr(s,'folders') %}Mostly from: {{ state_attr(s,'folders') | join(', ') }}.
+          {% endif %}{% if state_attr(s,'thumbnails') %}Look at them: {{ state_attr(s,'thumbnails') }}
+          {% endif %}{% if state_attr(s,'restore_script') %}Restore (as root on the storage host): bash {{ state_attr(s,'restore_script') }}
+          {% endif %}{% if d | length == 10 %}Recoverable through {{ months[d[5:7] | int - 1] }} {{ d[8:10] | int }} - after that no longer.
+          Was this an accident? Say so before that date.
+          {% endif %}{% endif %}{% if state_attr(s,'side_issues') %}Note: {{ state_attr(s,'side_issues') }}{% endif %}
+        data:
+          priority: high
+          channel: photowatch
+
+- alias: Photowatch - task is silent
+  id: photowatch_silent
+  mode: single
+  trigger:
+    - platform: time
+      at: "12:00:00"
+  condition:
+    # Unknown or unavailable counts as silent too. 108000 seconds is 30 hours:
+    # long enough for the 5 minute spread, short enough to catch one missed day.
+    - condition: template
+      value_template: >-
+        {{ states('sensor.photowatch_last_run') in ['unknown','unavailable','']
+           or (now() - states('sensor.photowatch_last_run') | as_datetime).total_seconds() > 108000 }}
+  action:
+    - service: notify.mobile_app_alex_phone
+      data:
+        title: "Photowatch is silent"
+        message: >-
+          Photowatch has not reported since
+          {{ states('sensor.photowatch_last_run') }}.
+          The snapshots may have stopped.
+        data:
+          channel: photowatch
+    - service: notify.mobile_app_robin_phone
+      data:
+        title: "Photowatch is silent"
+        message: >-
+          Photowatch has not reported since
+          {{ states('sensor.photowatch_last_run') }}.
+          The snapshots may have stopped.
+        data:
+          channel: photowatch
+
+# Administrator work: only to the first phone. The side work (thumbnails,
+# restore script, cleanup) never holds up the alert, but a structurally failing
+# cleanup would otherwise stay unnoticed for years.
+- alias: Photowatch - side issues
+  id: photowatch_side_issues
+  mode: single
+  trigger:
+    - platform: time
+      at: "12:10:00"
+  condition:
+    - condition: template
+      value_template: "{{ state_attr('sensor.photowatch_deleted','side_issues') | default('', true) | length > 0 }}"
+  action:
+    - service: notify.mobile_app_alex_phone
+      data:
+        title: "Photowatch: side issue failed"
+        message: >-
+          {{ state_attr('sensor.photowatch_deleted','side_issues') }}
+          — the alert itself works; this is about the thumbnails, the restore
+          script or the cleanup. See journalctl -u photowatch on the host.
+        data:
+          channel: photowatch
+
+# Also administrator work: artifacts_mb should level off after two weeks. If it
+# keeps growing, the cleanup is no longer running.
+- alias: Photowatch - disk space
+  id: photowatch_diskspace
+  mode: single
+  trigger:
+    - platform: time
+      at: "12:05:00"
+  condition:
+    - condition: template
+      value_template: "{{ state_attr('sensor.photowatch_deleted','artifacts_mb') | int(0) > 800 }}"
+  action:
+    - service: notify.mobile_app_alex_phone
+      data:
+        title: "Photowatch: artifacts are growing"
+        message: >-
+          The reports and thumbnails take up
+          {{ state_attr('sensor.photowatch_deleted','artifacts_mb') }} MB.
+          The cleanup may have stopped.
+        data:
+          channel: photowatch

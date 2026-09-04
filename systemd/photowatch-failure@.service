@@ -1,0 +1,49 @@
+[Unit]
+Description=Reports in Home Assistant that %i has failed
+Documentation=https://github.com/Forsskieken/photowatch
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+# *With* '-', unlike photowatch.service: this unit exists to report that
+# something is wrong, and a missing env file is one of the likeliest causes.
+# Without the dash systemd refuses to start it and nothing happens at all.
+EnvironmentFile=-/etc/photowatch/photowatch.env
+# systemd splits this line into arguments itself; no shell is involved. %i is
+# the name of the failed unit. systemd also sets $MONITOR_INVOCATION_ID here
+# (systemd 249+), which the program compares with the invocation id in
+# status.json so that one failure never produces two messages.
+ExecStart=/usr/local/bin/photowatch -report-failure "unit %i has failed"
+TimeoutStartSec=120
+
+# This unit only talks to Home Assistant: no zfs, nothing to write. It can
+# therefore be locked down tighter than photowatch.service itself.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+ProtectProc=invisible
+ProtectClock=yes
+ProtectHostname=yes
+SystemCallArchitectures=native
+KeyringMode=private
+UMask=0027
+# Empty: this unit only speaks HTTPS and reads status.json. It needs no
+# capability at all, not even as root.
+CapabilityBoundingSet=
+# No ReadWritePaths= or ReadOnlyPaths= on purpose: reading is already allowed
+# under ProtectSystem=strict, and naming a path that does not exist yet would
+# keep the unit from starting.

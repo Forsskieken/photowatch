@@ -1,0 +1,63 @@
+# Add this block to template.yaml in Home Assistant.
+# In secrets.yaml: photowatch_webhook: <the same id as in WEBHOOK_URL>
+
+# Two trigger sensors on one webhook. A trigger sensor only updates on an event
+# and keeps its value across a restart of HA.
+- trigger:
+    - platform: webhook
+      webhook_id: !secret photowatch_webhook
+      allowed_methods: [POST]
+      # Only accept the webhook from the local network. If the request ever
+      # looks non-local, HA refuses it and still answers 200 — set HA_IP in the
+      # env file rather than turning this off.
+      local_only: true
+  sensor:
+    - name: Photowatch last run
+      unique_id: photowatch_last_run
+      device_class: timestamp
+      # now() and not a field from the payload: this is the heartbeat and it
+      # must measure when HA got the message.
+      state: "{{ now().isoformat() }}"
+
+    - name: Photowatch deleted
+      unique_id: photowatch_deleted
+      state: "{{ trigger.json.deleted | int(0) }}"
+      unit_of_measurement: "files"
+      attributes:
+        # The only field guaranteed to differ per run; without it a daily
+        # repeating failure would fire the automation only once.
+        time: "{{ trigger.json.time | default('') }}"
+        status: "{{ trigger.json.status | default('unknown') }}"
+        alarm: "{{ trigger.json.alarm | default(false) }}"
+        message: "{{ trigger.json.message | default('') }}"
+        report: "{{ trigger.json.report | default('') }}"
+        previous_snapshot: "{{ trigger.json.previous_snapshot | default('') }}"
+        new_snapshot: "{{ trigger.json.new_snapshot | default('') }}"
+        threshold: "{{ trigger.json.threshold | default(0) }}"
+        deleted_dirs: "{{ trigger.json.deleted_dirs | default(0) }}"
+        # Should be 0; if not, zfs diff produced lines photowatch did not
+        # understand and the count may be wrong.
+        unparsed: "{{ trigger.json.unparsed | default(0) }}"
+        # Lines outside PATH_PREFIX; normal on a quiet day.
+        skipped: "{{ trigger.json.skipped | default(0) }}"
+        examples: "{{ trigger.json.examples | default([]) }}"
+        # "22 photos with their 21 XMP sidecars" says more than "43 files".
+        media_files: "{{ trigger.json.media_files | default(0) }}"
+        sidecar_files: "{{ trigger.json.sidecar_files | default(0) }}"
+        # The three folders with the most deletions; answers "was this an
+        # accident?" on a phone screen.
+        folders: "{{ trigger.json.folders | default([]) }}"
+        # The date the snapshot disappears; after that restoring is impossible.
+        recover_until: "{{ trigger.json.recover_until | default('') }}"
+        restore_script: "{{ trigger.json.restore_script | default('') }}"
+        # Only the path to the day directory, never an image: a picture in the
+        # notification would be servable without authentication.
+        thumbnails: "{{ trigger.json.thumbnails | default('') }}"
+        # An intention, not a count: the scaling happens after this message.
+        thumbnails_planned: "{{ trigger.json.thumbnails_planned | default(0) }}"
+        # What went wrong in the side work; the "side issues" automation
+        # complains daily as long as this field is filled.
+        side_issues: "{{ trigger.json.side_issues | default('') }}"
+        # Size of the report and thumbnail directories in MB, measured in the
+        # aftercare of the previous run, so one day old.
+        artifacts_mb: "{{ trigger.json.artifacts_mb | default(0) }}"

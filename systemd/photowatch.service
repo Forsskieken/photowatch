@@ -1,0 +1,78 @@
+[Unit]
+Description=Photowatch: daily ZFS snapshot of the photo dataset, with an alert on deleted files
+Documentation=https://github.com/Forsskieken/photowatch
+# Reports in Home Assistant that the run fell over, for the case photowatch
+# stumbles so early (broken config, missing env file) that it could send nothing
+# itself. %n is the name of this unit.
+OnFailure=photowatch-failure@%n.service
+# At most 5 starts per hour, for all starts including manual ones. Restart= is
+# deliberately absent: a oneshot gains nothing from retrying immediately.
+# These two belong in [Unit] since systemd 229.
+StartLimitIntervalSec=3600
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+# Runs as root: zfs snapshot/diff/destroy need /dev/zfs, and a sudoers rule with
+# NOPASSWD on `zfs destroy` is practically root-equivalent for this dataset.
+User=root
+Group=root
+# Without '-': if the env file is missing, the unit fails loudly instead of
+# running with a half-filled configuration.
+EnvironmentFile=/etc/photowatch/photowatch.env
+ExecStart=/usr/local/bin/photowatch
+# Well above the time a diff over a full photo dataset costs.
+TimeoutStartSec=1800
+# Scaling at most 24 photos is the only part that asks noticeable memory. This
+# is the last net under the limits in thumbnail.go (200 MB file size, 256 MB
+# decoded image per file); measured peak RSS with ten 244 MB images in a row is
+# 755 MB, which leaves about 245 MB of margin. To widen that margin, set
+# Environment=GOMEMLIMIT=600MiB rather than raising MemoryMax.
+MemoryMax=1G
+# VMs and containers keep priority; this task is in no hurry.
+Nice=10
+
+# --- Restrictions. Root, but as little root as possible. ---
+NoNewPrivileges=yes
+ProtectSystem=strict
+# Note the '-' before the thumbnail directory: it tells systemd to ignore a
+# missing path instead of refusing to start. Without it the whole watch falls
+# over as soon as that dataset is not there — and then the alert stays silent
+# over a thumbnail. Change THUMBNAIL_DIR in the env file and change it here too.
+ReadWritePaths=/var/lib/photowatch /var/log/photowatch -/mnt/tank/photowatch
+# read-only and not 'yes' because the photo dataset may be mounted under /home.
+ProtectHome=read-only
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+# AF_NETLINK is not decoration: Go's DNS resolver asks over netlink which
+# addresses the host itself listens on. Without it the lookup of the Home
+# Assistant host name fails.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+ProtectProc=invisible
+ProtectClock=yes
+ProtectHostname=yes
+SystemCallArchitectures=native
+KeyringMode=private
+# The code sets the mode of every file itself; this umask is the safety net.
+UMask=0027
+# Root, but not all of root's powers: CAP_SYS_ADMIN for the /dev/zfs ioctls,
+# DAC_OVERRIDE and DAC_READ_SEARCH to write and read outside our own ownership,
+# CHOWN and FOWNER to give reports and day directories the group of their parent
+# directory. If a zfs command fails with EPERM after a change here, widen this
+# line first, then SystemCallFilter (add @mount), then RestrictNamespaces.
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_CHOWN CAP_FOWNER
+# The line that costs an evening when missing: ZFS talks to the kernel through
+# /dev/zfs, and PrivateDevices=yes hides exactly that device.
+PrivateDevices=no
+
+[Install]
+WantedBy=multi-user.target

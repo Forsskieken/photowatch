@@ -1,0 +1,16 @@
+[Unit]
+Description=Start photowatch every morning at 08:15
+Documentation=https://github.com/Forsskieken/photowatch
+
+[Timer]
+OnCalendar=*-*-* 08:15:00
+# Spread of at most 5 minutes, so the host does not get the same peak to the
+# second every day.
+RandomizedDelaySec=300
+# If the host was off at 08:15, the run still happens once it is up; otherwise a
+# missed morning passes silently and the next run measures over 48 hours.
+Persistent=true
+Unit=photowatch.service
+
+[Install]
+WantedBy=timers.target
